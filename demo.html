@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Ecommerce AI Agent Demo</title>
+  <style>
+    body {
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f0f2f5;
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 30px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 28px;
+      color: #333;
+      margin-bottom: 25px;
+    }
+
+    .input-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      font-weight: 600;
+      display: block;
+      margin-bottom: 8px;
+      color: #444;
+    }
+
+    textarea,
+    select {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 15px;
+      box-sizing: border-box;
+    }
+
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    .button-group {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    button {
+      padding: 12px 20px;
+      font-size: 15px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background-color: #007bff;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background-color: #0056b3;
+    }
+
+    .btn-secondary {
+      background-color: #6c757d;
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background-color: #545b62;
+    }
+
+    .progress-section {
+      margin-top: 20px;
+      display: none;
+    }
+
+    .progress-bar {
+      background-color: #e0e0e0;
+      border-radius: 5px;
+      overflow: hidden;
+      height: 16px;
+    }
+
+    .progress-fill {
+      background-color: #007bff;
+      height: 100%;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    .progress-text {
+      margin-top: 10px;
+      color: #555;
+      font-weight: 500;
+    }
+
+    .results-section {
+      margin-top: 30px;
+    }
+
+    .result-item {
+      background-color: #f9f9f9;
+      border: 1px solid #ddd;
+      padding: 15px;
+      margin-bottom: 20px;
+      border-radius: 6px;
+    }
+
+    .result-title {
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #333;
+    }
+
+    .sql-query {
+      background-color: #1e1e1e;
+      color: #dcdcdc;
+      padding: 10px;
+      border-radius: 5px;
+      font-family: monospace;
+      font-size: 14px;
+      overflow-x: auto;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    .data-table th,
+    .data-table td {
+      border: 1px solid #ddd;
+      padding: 8px 12px;
+    }
+
+    .data-table th {
+      background-color: #f0f0f0;
+      font-weight: 600;
+    }
+
+    .error {
+      color: #842029;
+      background-color: #f8d7da;
+      border: 1px solid #f5c2c7;
+      padding: 10px;
+      border-radius: 6px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🛒 Ecommerce AI Agent</h1>
+
+    <div class="input-group">
+      <label for="question">Ask a Question</label>
+      <textarea
+        id="question"
+        placeholder="e.g., Show me total sales by date"
+      ></textarea>
+    </div>
+
+    <div class="input-group">
+      <label for="chartType">Chart Type (optional)</label>
+      <select id="chartType">
+        <option value="">No Chart (Table Only)</option>
+        <option value="line">Line Chart</option>
+        <option value="bar">Bar Chart</option>
+        <option value="pie">Pie Chart</option>
+        <option value="scatter">Scatter Plot</option>
+      </select>
+    </div>
+
+    <div class="button-group">
+      <button class="btn-secondary" onclick="clearResults()">Clear</button>
+      <button class="btn-primary" onclick="askQuestion()">Ask</button>
+    </div>
+
+    <div class="progress-section" id="progressSection">
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <div class="progress-text" id="progressText">Processing...</div>
+    </div>
+
+    <div class="results-section" id="results"></div>
+  </div>
+
+  <script>
+    async function askQuestion() {
+      const question = document.getElementById("question").value.trim();
+      const chartType = document.getElementById("chartType").value;
+
+      if (!question) {
+        alert("Please enter a question.");
+        return;
+      }
+
+      showProgress();
+
+      try {
+        const response = await fetch("/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            question: question,
+            chart_type: chartType || null,
+            include_visualization: true,
+          }),
+        });
+
+        const data = await response.json();
+        hideProgress();
+        displayResults(data);
+      } catch (err) {
+        hideProgress();
+        displayError("Error: " + err.message);
+      }
+    }
+
+    function showProgress() {
+      document.getElementById("progressSection").style.display = "block";
+      updateProgress(5, "Analyzing question...");
+    }
+
+    function hideProgress() {
+      document.getElementById("progressSection").style.display = "none";
+    }
+
+    function updateProgress(percent, message) {
+      document.getElementById("progressFill").style.width = percent + "%";
+      document.getElementById("progressText").textContent = message;
+    }
+
+    function displayResults(data) {
+      const resultsDiv = document.getElementById("results");
+
+      let html = `
+        <div class="result-item">
+          <div class="result-title">Your Question</div>
+          <div>${data.question}</div>
+        </div>
+        <div class="result-item">
+          <div class="result-title">Generated SQL Query</div>
+          <div class="sql-query">${data.sql_query}</div>
+        </div>
+      `;
+
+      if (data.answer) {
+        html += `
+          <div class="result-item">
+            <div class="result-title">Answer</div>
+            <div>${formatAnswer(data.answer)}</div>
+          </div>`;
+      }
+
+      if (data.visualization) {
+        html += `
+          <div class="result-item">
+            <div class="result-title">Visualization</div>
+            <div>${formatVisualization(data.visualization)}</div>
+          </div>`;
+      }
+
+      resultsDiv.innerHTML = html;
+      
+      // Execute scripts in Plotly visualizations
+      if (data.visualization && data.visualization.format === 'html') {
+        setTimeout(() => {
+          const scripts = resultsDiv.querySelectorAll('script');
+          scripts.forEach(script => {
+            const newScript = document.createElement('script');
+            if (script.src) {
+              newScript.src = script.src;
+            } else {
+              newScript.text = script.text;
+            }
+            document.head.appendChild(newScript);
+            setTimeout(() => document.head.removeChild(newScript), 100);
+          });
+        }, 100);
+      }
+    }
+
+    function formatAnswer(answer) {
+      if (Array.isArray(answer) && answer.length > 0) {
+        const keys = Object.keys(answer[0]);
+        let table = '<table class="data-table"><thead><tr>';
+        keys.forEach((key) => (table += `<th>${key}</th>`));
+        table += '</tr></thead><tbody>';
+        answer.forEach((row) => {
+          table += "<tr>";
+          keys.forEach((key) => (table += `<td>${row[key]}</td>`));
+          table += "</tr>";
+        });
+        table += "</tbody></table>";
+        return table;
+      }
+      return answer || "No results found.";
+    }
+
+    function formatVisualization(viz) {
+      if (viz.format === "html") {
+        return viz.content;
+      } else if (viz.format === "base64") {
+        return `<img src="${viz.content}" style="max-width:100%;">`;
+      } else if (viz.format === "json") {
+        return formatAnswer(viz.content);
+      }
+      return `<pre>${JSON.stringify(viz)}</pre>`;
+    }
+
+    function displayError(message) {
+      document.getElementById("results").innerHTML = `<div class="error">${message}</div>`;
+    }
+
+    function clearResults() {
+      document.getElementById("results").innerHTML = "";
+      hideProgress();
+    }
+
+    // Autofill a question for demo purposes
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("question").value = "Show me total sales by date";
+    });
+  </script>
+</body>
+</html>
